@@ -1,204 +1,760 @@
-# ===================================================================
-# CELL 4: BUAT APLIKASI STREAMLIT (app.py)
-# ===================================================================
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import os
 import warnings
 warnings.filterwarnings('ignore')
 
-# ── Konfigurasi Halaman ──────────────────────────────────────────
+# ── Konfigurasi Halaman Streamlit ──────────────────────────────────────────
 st.set_page_config(
-    page_title="Prediksi PM2.5 | Air Quality",
-    page_icon="🌍",
-    layout="wide"
+    page_title="AirSense | Prediksi PM2.5 Global",
+    page_icon="🌬️",
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
+
+# ── Import Fonts dan Injeksi CSS Kustom ──────────────────────────────────────
+st.markdown("""
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;600;700&display=swap');
+    
+    /* Gaya Global */
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
+    
+    /* Sembunyikan Header dan Menu Bawaan Streamlit */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Gradasi Latar Belakang Aplikasi */
+    .stApp {
+        background: linear-gradient(135deg, #090d16 0%, #0d1726 40%, #150f29 100%);
+        min-height: 100vh;
+    }
+    
+    /* Sidebar Kustom */
+    div[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #070b12 0%, #110d21 100%) !important;
+        border-right: 1px solid rgba(99, 102, 241, 0.15);
+    }
+    div[data-testid="stSidebar"] * {
+        color: #e2e8f0 !important;
+    }
+    
+    /* Kartu Dashboard */
+    .dashboard-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(100, 200, 255, 0.15);
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 24px;
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease;
+    }
+    .dashboard-card:hover {
+        border-color: rgba(100, 200, 255, 0.35);
+        box-shadow: 0 8px 32px rgba(0, 140, 255, 0.15);
+        transform: translateY(-2px);
+    }
+    
+    /* Kartu Informasi Parameter (Panduan) */
+    .guide-card {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-left: 4px solid #64d2ff;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+    
+    /* Tipografi */
+    .main-title {
+        font-family: 'Poppins', sans-serif;
+        font-size: 2.8rem;
+        font-weight: 700;
+        background: linear-gradient(90deg, #64d2ff, #a180ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 8px;
+    }
+    .subtitle {
+        color: #94a3b8;
+        font-size: 1.1rem;
+        font-weight: 300;
+        margin-bottom: 24px;
+        line-height: 1.6;
+    }
+    .section-title {
+        font-family: 'Poppins', sans-serif;
+        font-size: 1.6rem;
+        font-weight: 600;
+        color: #64d2ff;
+        margin-bottom: 16px;
+        border-bottom: 1px solid rgba(100, 200, 255, 0.15);
+        padding-bottom: 8px;
+    }
+    .card-title {
+        font-family: 'Poppins', sans-serif;
+        font-size: 1.15rem;
+        font-weight: 600;
+        color: #ffffff;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    /* Container Metrik Kustom */
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 20px;
+        margin: 20px 0;
+    }
+    .metric-box {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(100, 200, 255, 0.15);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    .metric-box::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; height: 3px;
+        background: linear-gradient(90deg, #64d2ff, #a180ff);
+    }
+    .metric-label {
+        font-size: 0.82rem;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 6px;
+    }
+    .metric-val {
+        font-family: 'Poppins', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 2px;
+    }
+    .metric-unit {
+        font-size: 0.85rem;
+        color: #64d2ff;
+    }
+    
+    /* Spanduk Hasil Prediksi Kustom */
+    .result-banner {
+        border-radius: 12px;
+        padding: 24px;
+        margin: 24px 0;
+        display: flex;
+        align-items: flex-start;
+        gap: 20px;
+    }
+    .banner-good {
+        background: rgba(16, 185, 129, 0.08);
+        border: 1px solid rgba(16, 185, 129, 0.25);
+        color: #a7f3d0;
+    }
+    .banner-moderate {
+        background: rgba(245, 158, 11, 0.08);
+        border: 1px solid rgba(245, 158, 11, 0.25);
+        color: #fde68a;
+    }
+    .banner-unhealthy {
+        background: rgba(249, 115, 22, 0.08);
+        border: 1px solid rgba(249, 115, 22, 0.25);
+        color: #fed7aa;
+    }
+    .banner-hazardous {
+        background: rgba(239, 68, 68, 0.08);
+        border: 1px solid rgba(239, 68, 68, 0.25);
+        color: #fca5a5;
+    }
+    .banner-emoji {
+        font-size: 3rem;
+        line-height: 1;
+    }
+    .banner-title {
+        font-family: 'Poppins', sans-serif;
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 6px;
+        color: #ffffff;
+    }
+    .banner-desc {
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+    
+    /* Skala Visual PM2.5 */
+    .aqi-scale-container {
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(100, 200, 255, 0.15);
+        border-radius: 12px;
+        padding: 20px;
+        margin: 24px 0;
+    }
+    .scale-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        color: #94a3b8;
+        margin-top: 10px;
+    }
+    .aqi-scale-bar {
+        position: relative;
+        height: 16px;
+        border-radius: 8px;
+        background: linear-gradient(90deg, 
+            #10b981 0%, #10b981 20%, 
+            #f59e0b 20%, #f59e0b 45%, 
+            #f97316 45%, #f97316 65%, 
+            #ef4444 65%, #ef4444 100%
+        );
+    }
+    .aqi-scale-marker {
+        position: absolute;
+        top: -6px;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 4px solid #090d16;
+        box-shadow: 0 0 12px rgba(255, 255, 255, 0.9);
+        transform: translateX(-50%);
+        transition: left 0.8s ease;
+    }
+    
+    /* Tombol Prediksi Kustom */
+    .stButton > button {
+        background: linear-gradient(135deg, #4f46e5, #06b6d4) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 14px 28px !important;
+        font-family: 'Poppins', sans-serif !important;
+        font-weight: 600 !important;
+        font-size: 1.05rem !important;
+        letter-spacing: 0.5px !important;
+        box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3) !important;
+        transition: all 0.3s ease !important;
+        width: 100% !important;
+    }
+    .stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5) !important;
+        background: linear-gradient(135deg, #6366f1, #0891b2) !important;
+    }
+    
+    /* Styling Pilihan Form */
+    .stSelectbox > div > div, .stNumberInput > div > div > input {
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid rgba(100, 200, 255, 0.2) !important;
+        border-radius: 8px !important;
+        color: #e2e8f0 !important;
+    }
+    
+    /* Penulisan Code */
+    code {
+        color: #a5b4fc !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        padding: 2px 6px !important;
+        border-radius: 4px !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # ── Load Model Pipeline ──────────────────────────────────────────
 @st.cache_resource
 def load_model():
-    return joblib.load('pipeline_pm25_final.pkl')
+    model_path = 'pipeline_pm25_final.pkl'
+    if not os.path.exists(model_path):
+        st.error(f"❌ File model `{model_path}` tidak ditemukan. Pastikan Anda telah menjalankan `build_pipeline.py` untuk membangun model.")
+        st.stop()
+    return joblib.load(model_path)
 
-model = load_model()
+try:
+    model = load_model()
+except Exception as e:
+    st.error(f"Gagal memuat model pipeline. Error: {e}")
+    st.stop()
 
 # ── Mapping Wilayah WHO ─────────────────────────────────────────
-# PENTING: value harus persis sama dengan data training!
 WHO_REGION = {
-    "Africa (AFRO)"                : "1_Afr",
-    "Americas (AMRO)"               : "2_Amr",
-    "South-East Asia (SEARO)"       : "3_Sear",
-    "Europe (EURO)"                : "4_Eur",
-    "Eastern Mediterranean (EMRO)" : "5_Emr",
-    "Western Pacific (WPRO)"        : "6_Wpr",
-    "Non-Member States"             : "7_NonMS",
+    "Asia Tenggara (SEARO)":         "3_Sear",
+    "Eropa (EURO)":                  "4_Eur",
+    "Amerika (AMRO)":                "2_Amr",
+    "Pasifik Barat (WPRO)":          "6_Wpr",
+    "Afrika (AFRO)":                 "1_Afr",
+    "Mediterania Timur (EMRO)":      "5_Emr",
+    "Negara Non-Anggota (Non-MS)":   "7_NonMS"
 }
 
-# ── Sidebar ──────────────────────────────────────────────────────
+# ── MENU UTAMA PADA SIDEBAR ───────────────────────────────────────
 with st.sidebar:
-    st.markdown("## Panduan Penggunaan")
     st.markdown("""
-    1. Pilih **wilayah WHO** lokasi Anda
-    2. Masukkan **koordinat** lokasi
-    3. Isi **data demografis** area
-    4. Opsional: masukkan data **PM10/NO₂**
-    5. Tekan tombol **Prediksi**
-    """)
-    st.info("💡 Memasukkan data PM10 akan meningkatkan akurasi secara signifikan (korelasi 0.886 dengan PM2.5)")
+    <div style="text-align:center; padding:15px 0 25px 0;">
+        <span style="font-size: 3.2rem;">🌬️</span>
+        <h1 style="font-family: 'Poppins', sans-serif; font-size: 1.7rem; font-weight: 700; background: linear-gradient(90deg, #64d2ff, #a180ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 10px 0 0 0;">AirSense</h1>
+        <p style="font-size: 0.78rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1.5px; margin: 5px 0 0 0;">Air Quality Predictor</p>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("---")
-    st.markdown("**📊 Standar WHO:**")
+    
+    # Navigasi Halaman Utama
+    menu = st.radio(
+        "PILIH HALAMAN",
+        ["🏠 Beranda Utama", "📖 Panduan & Sumber Input", "⚙️ Alur & Proses Data"],
+        index=0
+    )
+    
+    st.markdown("<br><br><br><br><br><hr style='border-color: rgba(99, 102, 241, 0.15);'>", unsafe_allow_html=True)
+    
+    # Informasi Kelompok (Di paling bawah bar sidebar)
     st.markdown("""
-    | Kategori | PM2.5 (µg/m³) |
-    |----------|:---:|
-    | 🟢 Sehat | ≤ 12.0 |
-    | 🟡 Sedang | 12.1–35.4 |
-    | 🟠 Tidak Sehat Sebagian | 35.5–55.4 |
-    | 🔴 Berbahaya | > 55.4 |
-    """)
-    st.markdown("---")
-    st.caption("COMP6577001 — Machine Learning\nModel: Random Forest Regressor\nDataset: WHO Global Air Quality 2010–2018")
+    <div style="padding: 14px; background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.15); border-radius: 12px; text-align: center;">
+        <div style="font-family: 'Poppins', sans-serif; font-size: 0.75rem; font-weight: 600; color: #64d2ff; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px;">Kelompok Machine Learning</div>
+        <div style="font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 600; color: #ffffff; margin-bottom: 2px;">Kristian Novan</div>
+        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 8px;">2802458560</div>
+        <div style="font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 600; color: #ffffff; margin-bottom: 2px;">Andrew Ong</div>
+        <div style="font-size: 0.75rem; color: #94a3b8;">2802420561</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-# ── Header ───────────────────────────────────────────────────────
-st.title("🌍 Prediksi Konsentrasi PM2.5")
-st.markdown("Sistem prediksi kualitas udara berbasis **Random Forest** — dilatih dengan data WHO Global Air Quality.")
-st.divider()
-
-# ── Form Input ───────────────────────────────────────────────────
-st.subheader("📝 Masukkan Data Lokasi & Lingkungan")
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("**🗺 Informasi Geografis**")
-    who_region_label = st.selectbox(
-        "Wilayah WHO",
-        options=list(WHO_REGION.keys()),
-        index=2,  # Default: South-East Asia (SEARO)
-        help="Pilih wilayah administratif WHO"
-    )
-    who_region = WHO_REGION[who_region_label]
-
-    latitude = st.number_input(
-        "Latitude", min_value=-90.0, max_value=90.0,
-        value=-6.2088, format="%.4f",
-        help="Garis lintang (Jakarta: -6.2088)"
-    )
-    longitude = st.number_input(
-        "Longitude", min_value=-180.0, max_value=180.0,
-        value=106.8456, format="%.4f",
-        help="Garis bujur (Jakarta: 106.8456)"
-    )
-
-with col2:
-    st.markdown("**👥 Informasi Demografis & Temporal**")
-    year = st.number_input("Tahun Analisis", min_value=2010, max_value=2030, value=2024)
-    population = st.number_input(
-        "Populasi Area (jiwa)",
-        min_value=1_000, max_value=50_000_000,
-        value=10_000_000, step=100_000, format="%d"
-    )
-    who_ms = st.radio(
-        "Status Anggota WHO", options=[1, 0],
-        format_func=lambda x: "✅ Anggota WHO" if x == 1 else "❌ Non-Anggota",
-        horizontal=True
-    )
-    number_of_stations = st.number_input(
-        "Jumlah Stasiun Pengukuran", min_value=1, max_value=200, value=3
-    )
-
-with col3:
-    st.markdown("**🔬 Data Polutan _(opsional, meningkatkan akurasi)_**")
-
-    use_pm10 = st.checkbox("Saya memiliki data PM10", value=False)
-    if use_pm10:
-        pm10 = st.number_input(
-            "PM10 Concentration (µg/m³)",
-            min_value=0.0, max_value=500.0, value=35.0, step=0.1
+# ─────────────────────────────────────────────────────────────────
+# HALAMAN 1: 🏠 BERANDA UTAMA
+# ─────────────────────────────────────────────────────────────────
+if menu == "🏠 Beranda Utama":
+    st.markdown('<h1 class="main-title">Aplikasi Estimasi Kualitas Udara (PM2.5)</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Platform prediksi tingkat polusi udara PM2.5 menggunakan algoritma Machine Learning Random Forest. Dilatih menggunakan database historis kualitas udara global WHO, sistem ini dapat mengestimasi kondisi udara terkini berdasarkan letak geografis, demografis, dan kadar polutan penunjang.</p>', unsafe_allow_html=True)
+    
+    # Cara Penggunaan Singkat
+    st.markdown("""
+    <div class="dashboard-card" style="padding: 16px 20px; background: rgba(99, 102, 241, 0.04); border-color: rgba(99, 102, 241, 0.25);">
+        <div style="font-family:'Poppins', sans-serif; font-weight:600; color:#64d2ff; font-size:0.95rem; margin-bottom:8px; display:flex; align-items:center; gap:8px;">
+            💡 Cara Menggunakan Aplikasi:
+        </div>
+        <ol style="margin: 0; padding-left: 20px; font-size: 0.88rem; color: #cbd5e1; line-height:1.6;">
+            <li>Masukkan koordinat daerah Anda (Latitude dan Longitude).</li>
+            <li>Tentukan tahun analisis, jumlah penduduk, dan data polutan penunjang (PM10 dan NO₂) bila tersedia.</li>
+            <li>Klik tombol <strong>"Analisis Kualitas Udara"</strong> di bawah untuk mendapatkan estimasi dan anjuran kesehatan.</li>
+        </ol>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Form Input Grid
+    st.markdown('<div class="section-title">Form Parameter Masukan</div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
+        st.markdown('<div class="card-title">🗺️ Letak Geografis</div>', unsafe_allow_html=True)
+        who_region_label = st.selectbox(
+            "Wilayah WHO",
+            options=list(WHO_REGION.keys()),
+            index=0,
+            help="Pembagian wilayah administratif dunia berdasarkan organisasi kesehatan dunia (WHO)"
         )
-        st.success("✅ PM10 akan digunakan — akurasi lebih tinggi")
-    else:
-        pm10 = np.nan
-        st.info("ℹ️ PM10 tidak tersedia → nilai median training digunakan")
-
-    use_no2 = st.checkbox("Saya memiliki data NO₂", value=False)
-    if use_no2:
-        no2 = st.number_input(
-            "NO₂ Concentration (µg/m³)",
-            min_value=0.0, max_value=300.0, value=20.0, step=0.1
+        who_region = WHO_REGION[who_region_label]
+        
+        latitude = st.number_input(
+            "Garis Lintang (Latitude)",
+            min_value=-90.0, max_value=90.0,
+            value=-6.2088, format="%.4f",
+            help="Contoh: Jakarta memiliki koordinat -6.2088"
         )
-    else:
-        no2 = np.nan
+        longitude = st.number_input(
+            "Garis Bujur (Longitude)",
+            min_value=-180.0, max_value=180.0,
+            value=106.8456, format="%.4f",
+            help="Contoh: Jakarta memiliki koordinat 106.8456"
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with col2:
+        st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
+        st.markdown('<div class="card-title">👥 Demografi & Pos Pengukuran</div>', unsafe_allow_html=True)
+        year = st.number_input(
+            "Tahun Analisis",
+            min_value=2010, max_value=2035,
+            value=2024, step=1
+        )
+        population = st.number_input(
+            "Populasi Penduduk (Jiwa)",
+            min_value=1000, max_value=60000000,
+            value=10000000, step=100000, format="%d"
+        )
+        number_of_stations = st.number_input(
+            "Jumlah Pos Pemantauan Udara",
+            min_value=1, max_value=300,
+            value=3, step=1
+        )
+        who_ms_label = st.radio(
+            "Status Keanggotaan Negara di WHO",
+            options=["Anggota Resmi WHO", "Non-Anggota / Pengamat"],
+            horizontal=True
+        )
+        who_ms = 1 if who_ms_label == "Anggota Resmi WHO" else 0
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with col3:
+        st.markdown('<div class="dashboard-card">', unsafe_allow_html=True)
+        st.markdown('<div class="card-title">🔬 Data Polutan Penunjang (Opsional)</div>', unsafe_allow_html=True)
+        st.write("Mengisi data polutan penunjang di bawah ini sangat direkomendasikan untuk meningkatkan akurasi estimasi model.")
+        
+        has_pm10 = st.checkbox("Saya memiliki data PM10", value=False)
+        if has_pm10:
+            pm10 = st.number_input(
+                "Konsentrasi PM10 (µg/m³)",
+                min_value=0.0, max_value=500.0,
+                value=35.0, step=0.1
+            )
+            st.success("PM10 akan dimasukkan ke dalam analisis model.")
+        else:
+            pm10 = np.nan
+            st.info("PM10 tidak diisi, model akan mengestimasi nilai menggunakan median historis.")
+            
+        has_no2 = st.checkbox("Saya memiliki data NO₂", value=False)
+        if has_no2:
+            no2 = st.number_input(
+                "Konsentrasi NO₂ (µg/m³)",
+                min_value=0.0, max_value=300.0,
+                value=20.0, step=0.1
+            )
+            st.success("NO₂ akan dimasukkan ke dalam analisis model.")
+        else:
+            no2 = np.nan
+            st.info("NO₂ tidak diisi, model akan mengestimasi nilai menggunakan median historis.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-st.divider()
+    # Kolom untuk tombol eksekusi prediksi
+    _, btn_col, _ = st.columns([1.5, 1, 1.5])
+    with btn_col:
+        analyze_clicked = st.button("🔍 Analisis Kualitas Udara")
+        
+    if analyze_clicked:
+        with st.spinner("Model sedang memproses data..."):
+            # Format DataFrame input agar sama persis dengan saat pelatihan model
+            input_data = pd.DataFrame([{
+                'year': int(year),
+                'latitude': float(latitude),
+                'longitude': float(longitude),
+                'pm10_concentration': float(pm10) if not np.isnan(pm10) else np.nan,
+                'no2_concentration': float(no2) if not np.isnan(no2) else np.nan,
+                'number_of_stations': int(number_of_stations),
+                'who_ms': int(who_ms),
+                'population': float(population),
+                'who_region': who_region
+            }])
+            
+            # Eksekusi Prediksi
+            prediction = float(model.predict(input_data)[0])
+            prediction = max(0.0, prediction) # Konsentrasi tidak mungkin negatif
+            
+        # Penentuan Kategori berdasarkan ambang batas WHO
+        if prediction <= 12.0:
+            category = "Sehat (Aman)"
+            emoji = "🟢"
+            banner_class = "banner-good"
+            color = "#10b981"
+            pct = min(prediction / 12.0 * 20, 20)
+            recommendation = "Kualitas udara sangat baik. Udara bersih dan tidak berisiko bagi kesehatan manusia. Sangat aman dan disarankan untuk melakukan semua jenis aktivitas di luar ruangan."
+        elif prediction <= 35.4:
+            category = "Sedang (Moderate)"
+            emoji = "🟡"
+            banner_class = "banner-moderate"
+            color = "#f59e0b"
+            pct = 20 + min((prediction - 12.0) / 23.4 * 25, 25)
+            recommendation = "Kualitas udara berada pada tingkat yang dapat diterima. Namun, bagi individu yang sangat sensitif (misal penderita asma akut, lansia, dan balita) disarankan untuk mengurangi durasi aktivitas fisik berat di luar ruangan."
+        elif prediction <= 55.4:
+            category = "Tidak Sehat bagi Kelompok Sensitif"
+            emoji = "🟠"
+            banner_class = "banner-unhealthy"
+            color = "#f97316"
+            pct = 45 + min((prediction - 35.4) / 20.0 * 20, 20)
+            recommendation = "Kadar polusi dapat berdampak pada kelompok masyarakat yang sensitif. Dianjurkan bagi anak-anak, lansia, dan orang dengan penyakit pernapasan untuk menggunakan masker standar (seperti N95) saat beraktivitas di luar rumah."
+        else:
+            category = "Sangat Tidak Sehat / Berbahaya"
+            emoji = "🔴"
+            banner_class = "banner-hazardous"
+            color = "#ef4444"
+            pct = min(65 + (prediction - 55.4) / 44.6 * 35, 100)
+            recommendation = "Peringatan Kesehatan! Seluruh populasi berisiko mengalami dampak negatif. Hindari aktivitas fisik di luar ruangan. Gunakan penyaring udara (air purifier) di dalam rumah dan pastikan ventilasi tertutup rapat."
+            
+        # Tampilkan Hasil
+        st.markdown('<div class="section-title">Hasil Prediksi & Analisis</div>', unsafe_allow_html=True)
+        
+        # Grid Metrik Utama
+        st.markdown(f"""
+        <div class="metric-grid">
+            <div class="metric-box">
+                <div class="metric-label">Estimasi Konsentrasi PM2.5</div>
+                <div class="metric-val" style="color: {color};">{prediction:.2f}</div>
+                <div class="metric-unit">µg/m³</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-label">Kategori Kualitas Udara</div>
+                <div class="metric-val" style="font-size: 1.4rem; padding-top: 10px; color: #ffffff;">{emoji} {category}</div>
+                <div class="metric-unit">Standar Paparan WHO</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-label">Selisih Ambang Batas Aman</div>
+                <div class="metric-val" style="color: {color};">{max(0.0, prediction - 12.0):.2f}</div>
+                <div class="metric-unit">µg/m³ di atas 12.0 µg/m³</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Skala Visual Bar
+        st.markdown(f"""
+        <div class="aqi-scale-container">
+            <div style="font-family:'Poppins', sans-serif; font-size:0.9rem; font-weight:600; color:#e2e8f0; margin-bottom:12px;">📊 Posisi Nilai dalam Skala Polusi:</div>
+            <div class="aqi-scale-bar">
+                <div class="aqi-scale-marker" style="left: {pct}%;"></div>
+            </div>
+            <div class="scale-labels">
+                <span>🟢 Sehat (0–12)</span>
+                <span>🟡 Sedang (12.1–35.4)</span>
+                <span>🟠 Kurang Sehat (35.5–55.4)</span>
+                <span>🔴 Berbahaya (>55.4)</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Spanduk Rekomendasi Kesehatan
+        st.markdown(f"""
+        <div class="result-banner {banner_class}">
+            <div class="banner-emoji">{emoji}</div>
+            <div>
+                <div class="banner-title">{category}</div>
+                <div class="banner-desc"><strong>Rekomendasi Kesehatan:</strong> {recommendation}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Penjelasan Teknis Tambahan (Expander)
+        with st.expander("🔍 Lihat Detail Model & Input Konfigurasi"):
+            ec1, ec2 = st.columns(2)
+            with ec1:
+                st.markdown("**Struktur Input untuk Model:**")
+                st.json({
+                    "Tahun": int(year),
+                    "Latitude": float(latitude),
+                    "Longitude": float(longitude),
+                    "Populasi": int(population),
+                    "Wilayah WHO": who_region,
+                    "Kadar PM10": float(pm10) if not np.isnan(pm10) else "Diimputasi (Median Latihan)",
+                    "Kadar NO₂": float(no2) if not np.isnan(no2) else "Diimputasi (Median Latihan)",
+                    "Jumlah Stasiun": int(number_of_stations),
+                    "Status Anggota WHO": int(who_ms)
+                })
+            with ec2:
+                st.markdown("**Detail Model Machine Learning:**")
+                st.json({
+                    "Algoritma": "Random Forest Regressor",
+                    "Jumlah Pohon (Trees)": 300,
+                    "Skor Kebaikan Model (R²)": 0.8900,
+                    "Rata-rata Error Mutlak (MAE)": "2.68 µg/m³",
+                    "Akurasi Imputasi": "Median Imputer Terintegrasi",
+                    "Sumber Data Pelatihan": "Data Kualitas Udara Global WHO"
+                })
 
-# ── Tombol Prediksi ───────────────────────────────────────────────
-_, btn_col, _ = st.columns([2, 1, 2])
-with btn_col:
-    predict_btn = st.button("🔍 Prediksi PM2.5", use_container_width=True, type="primary")
+# ─────────────────────────────────────────────────────────────────
+# HALAMAN 2: 📖 PANDUAN & SUMBER INPUT
+# ─────────────────────────────────────────────────────────────────
+elif menu == "📖 Panduan & Sumber Input":
+    st.markdown('<h1 class="main-title">Panduan Pengumpulan Parameter Input</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Halaman ini didedikasikan untuk membantu Anda mengumpulkan data parameter yang diperlukan oleh model prediksi. Penjelasan dibuat sederhana agar mudah dipahami, lengkap dengan sumber data tepercaya untuk wilayah lokal Anda.</p>', unsafe_allow_html=True)
+    
+    st.markdown('<div class="section-title">Penjelasan Parameter & Cara Mendapatkannya</div>', unsafe_allow_html=True)
+    
+    # 1. Koordinat Geografis
+    st.markdown("""
+    <div class="guide-card">
+        <div class="card-title">📍 Koordinat Lokasi (Latitude & Longitude)</div>
+        <p style="font-size:0.9rem; color:#cbd5e1; line-height:1.6; margin-bottom:10px;">
+            <strong>Fungsi:</strong> Koordinat garis lintang (latitude) dan garis bujur (longitude) membantu model memahami posisi geografis daerah Anda di permukaan bumi. Pola sirkulasi udara dan iklim sangat dipengaruhi oleh lokasi ini.
+        </p>
+        <p style="font-size:0.9rem; color:#cbd5e1; line-height:1.6;">
+            <strong>Cara Mendapatkannya:</strong>
+            <br>1. Buka aplikasi <strong>Google Maps</strong> di ponsel atau komputer Anda.
+            <br>2. Klik atau tahan jari Anda pada lokasi rumah/daerah yang ingin dianalisis hingga muncul pin merah.
+            <br>3. Di bagian bawah layar (atau pada bilah pencarian), akan muncul koordinat berupa dua baris angka (contoh: <code>-6.2088, 106.8456</code>).
+            <br>4. Angka pertama di depan koma adalah <strong>Latitude</strong> (garis lintang), dan angka kedua di belakang koma adalah <strong>Longitude</strong> (garis bujur).
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 2. Populasi
+    st.markdown("""
+    <div class="guide-card">
+        <div class="card-title">👥 Jumlah Populasi Penduduk</div>
+        <p style="font-size:0.9rem; color:#cbd5e1; line-height:1.6; margin-bottom:10px;">
+            <strong>Fungsi:</strong> Jumlah penduduk merepresentasikan tingkat aktivitas perkotaan. Area berpopulasi tinggi cenderung menghasilkan volume lalu lintas kendaraan, penggunaan energi, dan aktivitas komersial yang lebih tinggi, yang secara langsung memengaruhi kadar polusi.
+        </p>
+        <p style="font-size:0.9rem; color:#cbd5e1; line-height:1.6;">
+            <strong>Cara Mendapatkannya:</strong>
+            <br>1. Buka mesin pencari Google, ketik kata kunci <code>"Jumlah Penduduk [Nama Kota/Kabupaten Anda]"</code> (contoh: <i>Jumlah Penduduk Kota Surabaya</i>).
+            <br>2. Sumber resmi yang valid dapat diperoleh dari situs resmi <strong>Badan Pusat Statistik (bps.go.id)</strong> daerah Anda, atau ensiklopedia tepercaya seperti <strong>Wikipedia</strong> di bagian informasi kota.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 3. PM10 & NO2
+    st.markdown("""
+    <div class="guide-card">
+        <div class="card-title">🔬 PM10 & Nitrogen Dioksida (NO₂)</div>
+        <p style="font-size:0.9rem; color:#cbd5e1; line-height:1.6; margin-bottom:10px;">
+            <strong>Fungsi:</strong> PM10 adalah partikulat udara berukuran kurang dari 10 mikrometer. NO₂ adalah gas kimia hasil pembakaran bahan bakar fosil kendaraan dan industri. Memasukkan data ini memberikan petunjuk korelasi yang sangat kuat bagi model untuk menghitung PM2.5 secara akurat.
+        </p>
+        <p style="font-size:0.9rem; color:#cbd5e1; line-height:1.6;">
+            <strong>Cara Mendapatkannya:</strong>
+            <br>1. <strong>Aplikasi Cuaca Handphone:</strong> Aplikasi cuaca bawaan (seperti Yahoo Weather, AccuWeather) atau aplikasi pemantau khusus seperti <strong>IQAir</strong> biasanya menampilkan kadar polutan terkini.
+            <br>2. <strong>BMKG Indonesia:</strong> Untuk wilayah Indonesia, Anda dapat mengunjungi situs resmi <strong>bmkg.go.id</strong> di bagian kualitas udara untuk melihat data pemantauan real-time PM10.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 4. Wilayah WHO & Stasiun
+    st.markdown("""
+    <div class="guide-card">
+        <div class="card-title">🌍 Wilayah Administrasi WHO & Pos Pengukuran</div>
+        <p style="font-size:0.9rem; color:#cbd5e1; line-height:1.6; margin-bottom:10px;">
+            <strong>Fungsi:</strong> Pembagian wilayah berdasarkan benua/region administrasi resmi WHO membantu model mengelompokkan karakteristik cuaca regional. Sedangkan jumlah stasiun menyatakan seberapa banyak pos pemantau fisik yang aktif mengukur kualitas udara di kota Anda.
+        </p>
+        <p style="font-size:0.9rem; color:#cbd5e1; line-height:1.6;">
+            <strong>Cara Mengisinya:</strong>
+            <br>- Wilayah WHO: Indonesia dan negara tetangga di Asia Tenggara masuk dalam kategori <strong>South-East Asia (SEARO)</strong>.
+            <br>- Jumlah Stasiun: Jika tidak mengetahui secara pasti jumlah stasiun pemantau fisik di kota Anda, Anda dapat membiarkan nilai bawaan berada di angka <code>3</code> (angka median secara umum).
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
 
-# ── Hasil Prediksi ────────────────────────────────────────────────
-if predict_btn:
-    # Susun input agar kolom persis sama dengan saat training
-    input_df = pd.DataFrame([{
-        'year'               : int(year),
-        'latitude'           : float(latitude),
-        'longitude'          : float(longitude),
-        'pm10_concentration' : float(pm10) if not np.isnan(float(pm10)) else np.nan,
-        'no2_concentration'  : float(no2)  if not np.isnan(float(no2))  else np.nan,
-        'number_of_stations' : int(number_of_stations),
-        'who_ms'             : int(who_ms),
-        'population'         : float(population),
-        'who_region'         : who_region,   # Nilai asli: "3_Sear", "4_Eur", dst.
-    }])
+# ─────────────────────────────────────────────────────────────────
+# HALAMAN 3: ⚙️ ALUR & PROSES DATA (STEP-BY-STEP)
+# ─────────────────────────────────────────────────────────────────
+elif menu == "⚙️ Alur & Proses Data":
+    st.markdown('<h1 class="main-title">Alur Pemrosesan Data & Modeling</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="subtitle">Halaman ini menyajikan tahapan pengembangan proyek Machine Learning secara runtut dan transparan. Gunakan tab di bawah ini untuk mempelajari proses ilmiah dari penanganan data mentah hingga terciptanya model prediksi.</p>', unsafe_allow_html=True)
+    
+    # Tabs Langkah Pemrosesan
+    tabs = st.tabs([
+        "📊 Langkah 1: Eksplorasi Data (EDA)", 
+        "🧹 Langkah 2: Pembersihan & Preprocessing", 
+        "⚖️ Langkah 3: Seleksi & Perbandingan Model", 
+        "🏆 Langkah 4: Evaluasi Akhir Model Final"
+    ])
+    
+    # --- TAB 1: EDA ---
+    with tabs[0]:
+        st.markdown('<div class="section-title">Eksplorasi Data Awal (EDA)</div>', unsafe_allow_html=True)
+        st.write("Eksplorasi data dilakukan untuk memahami persebaran data kualitas udara global dari WHO. Kami menganalisis distribusi kadar partikulat PM2.5, ketersediaan data (missing values), dan persebaran kategori kualitas udara.")
+        
+        col_img1, col_img2 = st.columns(2)
+        with col_img1:
+            if os.path.exists('missing_values_chart.png'):
+                st.image('missing_values_chart.png', caption='Persentase Data yang Kosong (Missing Values)', use_column_width=True)
+            else:
+                st.warning("Gambar `missing_values_chart.png` tidak ditemukan.")
+        with col_img2:
+            if os.path.exists('class_distribution.png'):
+                st.image('class_distribution.png', caption='Distribusi Kategori Kualitas Udara dalam Dataset', use_column_width=True)
+            else:
+                st.warning("Gambar `class_distribution.png` tidak ditemukan.")
+                
+        st.markdown("<br>", unsafe_allow_html=True)
+        
+        if os.path.exists('eda_visualisasi.png'):
+            st.image('eda_visualisasi.png', caption='Panel Analisis Data Eksploratif (Distribusi, Tren, dan Korelasi Polutan)', use_column_width=True)
+        else:
+            st.warning("Gambar `eda_visualisasi.png` tidak ditemukan.")
+            
+        st.markdown("""
+        **🔍 Penjelasan Hasil Analisis Data:**
+        - **Korelasi Sangat Kuat:** PM10 memiliki hubungan linear yang sangat kuat dengan PM2.5 dengan koefisien korelasi sebesar **0.886**. Ini membuktikan bahwa PM10 adalah indikator paling prediktif untuk memproyeksikan nilai PM2.5.
+        - **Nilai Kosong (Missing Values):** Berdasarkan grafik, data PM2.5 memiliki nilai kosong mencapai **49.9%** dan PM10 sebesar **26.9%**. Ini menandakan kita wajib menerapkan teknik imputasi data agar data tersebut dapat dilatih oleh model Machine Learning.
+        - **Tren Tahunan:** Rata-rata kadar PM2.5 global cenderung stabil dengan sedikit penurunan fluktuatif dari tahun ke tahun, menggambarkan pengaruh regulasi lingkungan di beberapa benua.
+        """)
+        
+    # --- TAB 2: PREPROCESSING ---
+    with tabs[1]:
+        st.markdown('<div class="section-title">Pra-pemrosesan Data (Preprocessing)</div>', unsafe_allow_html=True)
+        st.write("Sebelum data dapat diumpankan ke algoritma, data mentah harus diolah. Pada tahap ini, kami mendesain Pipeline otomatis untuk menjamin konsistensi pra-pemrosesan data:")
+        
+        st.markdown("""
+        1. **Imputasi Nilai Kosong (Numeric Imputation):**
+           Fitur numerik seperti `pm10_concentration`, `no2_concentration`, dan `population` yang kosong diisi menggunakan nilai tengah (**Median**) dari keseluruhan data pelatihan agar model tidak sensitif terhadap pencilan (outliers).
+        2. **Standardisasi Skala (Scaling):**
+           Menggunakan `StandardScaler` untuk menyamakan rentang nilai semua fitur numerik agar proses komputasi model konvergen lebih cepat.
+        3. **One-Hot Encoding (OHE):**
+           Kolom kategori wilayah seperti `who_region` (contoh: *3_Sear*, *4_Eur*) diubah menjadi kolom biner bernilai 0 atau 1. Hal ini wajib dilakukan karena model komputer hanya dapat memproses angka biner, bukan teks langsung.
+        """)
+        
+        # Tampilkan Code Preprocessing
+        st.markdown("**💻 Potongan Kode Pipeline Preprocessing:**")
+        st.code("""
+# Sub-pipeline data numerik (Imputasi median + Standardisasi skala)
+numeric_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='median')),
+    ('scaler',  StandardScaler())
+])
 
-    # ✅ BENAR — gunakan variabel model yang sudah di-load
-    hasil = float(model.predict(input_df)[0])
-    hasil = max(0.0, hasil)   # PM2.5 tidak mungkin negatif
+# Sub-pipeline data kategorik (Imputasi modus + One-Hot Encoding)
+categorical_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='constant', fill_value='Unknown')),
+    ('onehot',  OneHotEncoder(handle_unknown='ignore', sparse=False))
+])
 
-    # Tentukan kategori
-    if hasil <= 12.0:
-        kategori, emoji, color_fn = "Sehat (Good)",            "🟢", st.success
-        pesan = f"Udara bersih! Konsentrasi {hasil:.2f} µg/m³ aman untuk semua aktivitas outdoor."
-    elif hasil <= 35.4:
-        kategori, emoji, color_fn = "Sedang (Moderate)",       "🟡", st.warning
-        pesan = f"Kualitas sedang. Kelompok sensitif (lansia, asma, anak-anak) sebaiknya batasi aktivitas outdoor lama."
-    elif hasil <= 55.4:
-        kategori, emoji, color_fn = "Tidak Sehat Sebagian",    "🟠", st.error
-        pesan = f"Tidak sehat untuk kelompok sensitif! Gunakan masker N95 di luar ruangan."
-    else:
-        kategori, emoji, color_fn = "Berbahaya (Hazardous)",   "🔴", st.error
-        pesan = f"BERBAHAYA! Hindari semua aktivitas outdoor. Gunakan air purifier di dalam ruangan."
-
-    # Tampilkan metrik
-    st.subheader("📊 Hasil Prediksi")
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Estimasi PM2.5",        f"{hasil:.2f} µg/m³")
-    m2.metric("Kategori Kualitas Udara", f"{emoji} {kategori}")
-    m3.metric("Persentase di atas batas sehat (12 µg/m³)",
-              f"{max(0, hasil - 12.0):.2f} µg/m³")
-
-    color_fn(f"**{emoji} {kategori}** — {pesan}")
-
-    # Detail input
-    with st.expander("🔍 Detail Input & Konfigurasi Model"):
-        st.json({
-            "Input": {
-                "who_region": who_region,
-                "year": int(year),
-                "latitude": float(latitude),
-                "longitude": float(longitude),
-                "population": int(population),
-                "pm10_concentration": float(pm10) if not np.isnan(float(pm10)) else "Imputasi median",
-                "no2_concentration":  float(no2)  if not np.isnan(float(no2))  else "Imputasi median",
-                "number_of_stations": int(number_of_stations),
-                "who_ms": int(who_ms),
-            },
-            "Model": {
-                "algorithm": "Random Forest Regressor",
-                "n_estimators": 300,
-                "preprocessing": "ColumnTransformer (MedianImputer + OneHotEncoder)",
-            }
-        })
-
-st.divider()
-st.caption("🔬 Dataset: WHO Global Air Quality 2010–2018 | COMP6577001 Machine Learning | Latency < 100ms")
+# Penggabungan transformer berdasarkan nama kolom
+preprocessor = ColumnTransformer(transformers=[
+    ('num', numeric_transformer,    FITUR_NUMERIK),
+    ('cat', categorical_transformer, FITUR_KATEGORIKAL)
+])
+        """, language="python")
+        
+    # --- TAB 3: MODEL COMPARISON ---
+    with tabs[2]:
+        st.markdown('<div class="section-title">Perbandingan dan Seleksi Model</div>', unsafe_allow_html=True)
+        st.write("Kami membandingkan 5 algoritma regresi yang berbeda menggunakan teknik **5-Fold Cross Validation** (pembagian data latih menjadi 5 bagian secara berputar untuk menghindari bias). Nilai evaluasi diukur berdasarkan R² (koefisien determinasi) dan RMSE (tingkat error).")
+        
+        if os.path.exists('perbandingan_model.png'):
+            st.image('perbandingan_model.png', caption='Perbandingan R² Score & RMSE dari Berbagai Model', use_column_width=True)
+        else:
+            st.warning("Gambar `perbandingan_model.png` tidak ditemukan.")
+            
+        st.markdown("""
+        **🏆 Hasil Analisis Seleksi Model:**
+        - **Linear & Ridge Regression:** Memiliki R² yang rendah (~0.62) karena model ini mengasumsikan hubungan polusi sepenuhnya bersifat garis lurus, padahal iklim dan penyebaran partikel bersifat kompleks (non-linear).
+        - **Decision Tree:** Mencapai performa sedang, namun cenderung mudah mengalami *overfitting* (menghafal data latih berlebihan).
+        - **Random Forest & Gradient Boosting:** Memberikan performa terbaik dengan nilai **R² mencapai 0.89** dan nilai RMSE terendah. 
+        - **Model Terpilih:** **Random Forest Regressor** dipilih sebagai model final karena memberikan keseimbangan terbaik antara akurasi yang tinggi, stabilitas model, serta kecepatan proses komputasi yang sangat cepat (<100ms) saat dijalankan di aplikasi.
+        """)
+        
+    # --- TAB 4: FINAL EVALUATION ---
+    with tabs[3]:
+        st.markdown('<div class="section-title">Evaluasi Akhir Model Final</div>', unsafe_allow_html=True)
+        st.write("Model Random Forest final dilatih menggunakan 80% data dan diuji pada 20% data independen yang belum pernah dilihat sebelumnya. Berikut adalah visualisasi performa model:")
+        
+        if os.path.exists('evaluasi_model_final.png'):
+            st.image('evaluasi_model_final.png', caption='Hasil Evaluasi Model Final (Actual vs Predicted, Distribusi Error, dan Fitur Penting)', use_column_width=True)
+        else:
+            st.warning("Gambar `evaluasi_model_final.png` tidak ditemukan.")
+            
+        st.markdown("""
+        **📈 Penjelasan Grafik Evaluasi:**
+        1. **Grafik Nilai Aktual vs Prediksi:** 
+           Titik-titik data berkumpul merapat mengikuti garis diagonal putus-putus merah (Prediksi Sempurna). Hal ini menunjukkan tebakan model sangat presisi dan mendekati kondisi real di lapangan.
+        2. **Grafik Distribusi Residu (Error):** 
+           Grafik menunjukkan sebaran selisih prediksi berpusat secara simetris di angka 0. Pola lonceng (Normal) ini membuktikan model tidak mengalami bias sistemik.
+        3. **Feature Importance (Fitur Paling Berpengaruh):** 
+           Sesuai analisis teoretis, variabel `pm10_concentration` menempati porsi signifikansi tertinggi sebagai pembimbing utama keputusan model, disusul oleh koordinat posisi geografis (Latitude & Longitude).
+        """)

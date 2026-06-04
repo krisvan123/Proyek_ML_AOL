@@ -503,7 +503,7 @@ DataId,Air_quality_category
 26596,Safety
 26597,Safety
 26598,Safety
-26599,Safety
+26599,Dangerous
 26600,Dangerous
 26601,Safety
 26602,Safety
@@ -566,7 +566,7 @@ DataId,Air_quality_category
 26659,Safety
 26660,Safety
 26661,Dangerous
-26662,Safety
+26662,Dangerous
 26663,Dangerous
 26664,Safety
 26665,Safety
@@ -1711,7 +1711,7 @@ DataId,Air_quality_category
 27804,Safety
 27805,Dangerous
 27806,Dangerous
-27807,Safety
+27807,Dangerous
 27808,Safety
 27809,Safety
 27810,Safety
@@ -1743,7 +1743,7 @@ DataId,Air_quality_category
 27836,Safety
 27837,Safety
 27838,Safety
-27839,Safety
+27839,Dangerous
 27840,Safety
 27841,Safety
 27842,Safety
@@ -2113,7 +2113,7 @@ DataId,Air_quality_category
 28206,Safety
 28207,Safety
 28208,Safety
-28209,Safety
+28209,Dangerous
 28210,Safety
 28211,Safety
 28212,Safety
@@ -2168,7 +2168,7 @@ DataId,Air_quality_category
 28261,Safety
 28262,Safety
 28263,Safety
-28264,Dangerous
+28264,Safety
 28265,Safety
 28266,Safety
 28267,Safety
@@ -2306,7 +2306,7 @@ DataId,Air_quality_category
 28399,Dangerous
 28400,Dangerous
 28401,Dangerous
-28402,Safety
+28402,Dangerous
 28403,Safety
 28404,Safety
 28405,Safety
@@ -2753,7 +2753,7 @@ DataId,Air_quality_category
 28846,Safety
 28847,Dangerous
 28848,Safety
-28849,Safety
+28849,Dangerous
 28850,Safety
 28851,Safety
 28852,Safety
@@ -3142,7 +3142,7 @@ DataId,Air_quality_category
 29235,Safety
 29236,Safety
 29237,Safety
-29238,Safety
+29238,Dangerous
 29239,Safety
 29240,Safety
 29241,Safety
@@ -3571,7 +3571,7 @@ DataId,Air_quality_category
 29664,Safety
 29665,Safety
 29666,Dangerous
-29667,Safety
+29667,Dangerous
 29668,Safety
 29669,Safety
 29670,Safety
@@ -4256,7 +4256,7 @@ DataId,Air_quality_category
 30349,Dangerous
 30350,Safety
 30351,Dangerous
-30352,Safety
+30352,Dangerous
 30353,Safety
 30354,Dangerous
 30355,Dangerous
@@ -4462,7 +4462,7 @@ DataId,Air_quality_category
 30555,Dangerous
 30556,Safety
 30557,Dangerous
-30558,Safety
+30558,Dangerous
 30559,Dangerous
 30560,Safety
 30561,Dangerous
@@ -4696,7 +4696,7 @@ DataId,Air_quality_category
 30789,Safety
 30790,Safety
 30791,Safety
-30792,Dangerous
+30792,Safety
 30793,Safety
 30794,Safety
 30795,Safety
@@ -5647,8 +5647,8 @@ DataId,Air_quality_category
 31740,Safety
 31741,Safety
 31742,Safety
-31743,Safety
-31744,Safety
+31743,Dangerous
+31744,Dangerous
 31745,Safety
 31746,Safety
 31747,Safety
@@ -5666,7 +5666,7 @@ DataId,Air_quality_category
 31759,Safety
 31760,Safety
 31761,Safety
-31762,Dangerous
+31762,Safety
 31763,Safety
 31764,Safety
 31765,Safety
@@ -6352,7 +6352,7 @@ DataId,Air_quality_category
 32445,Safety
 32446,Safety
 32447,Safety
-32448,Safety
+32448,Dangerous
 32449,Safety
 32450,Safety
 32451,Safety
@@ -6429,7 +6429,7 @@ DataId,Air_quality_category
 32522,Safety
 32523,Safety
 32524,Safety
-32525,Dangerous
+32525,Safety
 32526,Dangerous
 32527,Dangerous
 32528,Safety
@@ -6744,7 +6744,7 @@ DataId,Air_quality_category
 32837,Safety
 32838,Safety
 32839,Safety
-32840,Safety
+32840,Dangerous
 32841,Safety
 32842,Safety
 32843,Safety
@@ -7600,7 +7600,7 @@ DataId,Air_quality_category
 33693,Safety
 33694,Safety
 33695,Safety
-33696,Safety
+33696,Dangerous
 33697,Safety
 33698,Safety
 33699,Safety
@@ -8268,7 +8268,7 @@ DataId,Air_quality_category
 34361,Safety
 34362,Safety
 34363,Safety
-34364,Safety
+34364,Dangerous
 34365,Safety
 34366,Safety
 34367,Safety
@@ -8674,7 +8674,7 @@ DataId,Air_quality_category
 34767,Safety
 34768,Safety
 34769,Safety
-34770,Safety
+34770,Dangerous
 34771,Safety
 34772,Safety
 34773,Safety
@@ -9043,7 +9043,7 @@ DataId,Air_quality_category
 35136,Safety
 35137,Safety
 35138,Safety
-35139,Safety
+35139,Dangerous
 35140,Safety
 35141,Safety
 35142,Safety
@@ -9486,7 +9486,7 @@ DataId,Air_quality_category
 35579,Safety
 35580,Safety
 35581,Safety
-35582,Dangerous
+35582,Safety
 35583,Safety
 35584,Safety
 35585,Safety
@@ -9953,7 +9953,7 @@ DataId,Air_quality_category
 36046,Safety
 36047,Safety
 36048,Safety
-36049,Dangerous
+36049,Safety
 36050,Safety
 36051,Safety
 36052,Safety
@@ -10372,7 +10372,7 @@ DataId,Air_quality_category
 36465,Safety
 36466,Safety
 36467,Safety
-36468,Safety
+36468,Dangerous
 36469,Safety
 36470,Safety
 36471,Dangerous
@@ -10521,7 +10521,7 @@ DataId,Air_quality_category
 36614,Safety
 36615,Safety
 36616,Safety
-36617,Dangerous
+36617,Safety
 36618,Safety
 36619,Safety
 36620,Safety
@@ -10606,7 +10606,7 @@ DataId,Air_quality_category
 36699,Safety
 36700,Safety
 36701,Safety
-36702,Safety
+36702,Dangerous
 36703,Safety
 36704,Safety
 36705,Safety
@@ -10859,7 +10859,7 @@ DataId,Air_quality_category
 36952,Safety
 36953,Safety
 36954,Safety
-36955,Dangerous
+36955,Safety
 36956,Safety
 36957,Safety
 36958,Safety
@@ -11739,7 +11739,7 @@ DataId,Air_quality_category
 37832,Safety
 37833,Safety
 37834,Safety
-37835,Safety
+37835,Dangerous
 37836,Safety
 37837,Safety
 37838,Safety
@@ -12300,7 +12300,7 @@ DataId,Air_quality_category
 38393,Safety
 38394,Safety
 38395,Safety
-38396,Safety
+38396,Dangerous
 38397,Safety
 38398,Safety
 38399,Safety
