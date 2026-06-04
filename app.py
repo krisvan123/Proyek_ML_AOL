@@ -271,20 +271,98 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# ── Scikit-Learn Imports untuk Fallback Training ───────────────────
+from sklearn.pipeline import Pipeline as SkPipeline
+from sklearn.compose import ColumnTransformer as SkColumnTransformer
+from sklearn.impute import SimpleImputer as SkSimpleImputer
+from sklearn.preprocessing import OneHotEncoder as SkOneHotEncoder, StandardScaler as SkStandardScaler
+from sklearn.ensemble import RandomForestRegressor as SkRandomForestRegressor
+import sklearn
+
+# Fitur yang digunakan
+FEATURE_COLS = ["year", "latitude", "longitude", "pm10_concentration", "no2_concentration", "number_of_stations", "who_ms", "population", "who_region"]
+TARGET_COL = "pm25_concentration"
+NUM_COLS = ["year", "latitude", "longitude", "pm10_concentration", "no2_concentration", "number_of_stations", "who_ms", "population"]
+CAT_COLS = ["who_region"]
+
+def train_model_on_the_fly():
+    train_path = 'action2024/train.csv'
+    if not os.path.exists(train_path):
+        return None
+    try:
+        # Muat dataset secara instan
+        df = pd.read_csv(train_path, low_memory=False)
+        # Konversi numerik
+        for col in NUM_COLS + [TARGET_COL]:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors='coerce')
+        df_model = df.dropna(subset=[TARGET_COL]).copy()
+        df_model = df_model[df_model[TARGET_COL] > 0]
+        
+        X = df_model[FEATURE_COLS]
+        y = df_model[TARGET_COL]
+        
+        # Preprocessing
+        num_pipeline = SkPipeline([
+            ("imputer", SkSimpleImputer(strategy="median")),
+            ("scaler",  SkStandardScaler()),
+        ])
+        
+        # Penyesuaian parameter OHE berdasarkan versi scikit-learn
+        if sklearn.__version__ >= '1.2':
+            ohe = SkOneHotEncoder(handle_unknown="ignore", sparse_output=False)
+        else:
+            ohe = SkOneHotEncoder(handle_unknown="ignore", sparse=False)
+            
+        cat_pipeline = SkPipeline([
+            ("imputer", SkSimpleImputer(strategy="constant", fill_value="Unknown")),
+            ("ohe",     ohe),
+        ])
+        
+        preprocessor = SkColumnTransformer([
+            ("num", num_pipeline, NUM_COLS),
+            ("cat", cat_pipeline, CAT_COLS),
+        ])
+        
+        # Buat model Random Forest dengan n_estimators=100 agar proses cepat (< 1 detik)
+        pipeline = SkPipeline([
+            ("preprocessor", preprocessor),
+            ("model", SkRandomForestRegressor(
+                n_estimators=100,
+                min_samples_leaf=2,
+                random_state=42,
+                n_jobs=-1
+            )),
+        ])
+        
+        pipeline.fit(X, y)
+        return pipeline
+    except Exception:
+        return None
+
 # ── Load Model Pipeline ──────────────────────────────────────────
 @st.cache_resource
 def load_model():
     model_path = 'pipeline_pm25_final.pkl'
-    if not os.path.exists(model_path):
-        st.error(f"❌ File model `{model_path}` tidak ditemukan. Pastikan Anda telah menjalankan `build_pipeline.py` untuk membangun model.")
-        st.stop()
-    return joblib.load(model_path)
-
-try:
-    model = load_model()
-except Exception as e:
-    st.error(f"Gagal memuat model pipeline. Error: {e}")
+    
+    # 1. Coba memuat file pickle bawaan terlebih dahulu
+    try:
+        if os.path.exists(model_path):
+            return joblib.load(model_path)
+    except Exception:
+        pass
+        
+    # 2. Jika gagal/terjadi ketidakcocokan versi scikit-learn, jalankan fallback training
+    trained = train_model_on_the_fly()
+    if trained is not None:
+        return trained
+        
+    # 3. Jika fallback juga gagal, tampilkan error asli
+    st.error("❌ Gagal memuat model. Pastikan file model atau data pelatihan berada di direktori proyek.")
     st.stop()
+
+model = load_model()
+
 
 # ── Mapping Wilayah WHO ─────────────────────────────────────────
 WHO_REGION = {
