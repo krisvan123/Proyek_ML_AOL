@@ -1021,7 +1021,7 @@ elif menu == "Alur & Proses Data":
         corr_m = df[corr_cols].corr()
         
         fig = px.imshow(corr_m, text_auto='.2f',
-                        color_continuous_scale='coolwarm',
+                        color_continuous_scale='RdBu',
                         aspect="auto",
                         template='plotly_dark')
         fig.update_layout(
