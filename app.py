@@ -563,10 +563,6 @@ if menu == "Beranda Utama":
 
     # Form Input Grid
     st.markdown('<div class="section-title">Form Parameter Masukan</div>', unsafe_allow_html=True)
-    
-    # Form Input Grid
-    st.markdown('<div class="section-title">Form Parameter Masukan</div>', unsafe_allow_html=True)
-    
     col1, col2, col3 = st.columns(3)
     
     with col1:
